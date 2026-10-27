@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔮 排班 - 智慧排班系統</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons for elegant UI icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c4b5fd',
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+    body {
+      font-family: 'Inter', 'Noto Sans TC', sans-serif;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    /* Pulsing loading effect */
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(124, 58, 237, 0.4); }
+      50% { box-shadow: 0 0 30px rgba(124, 58, 237, 0.85); }
+    }
+    .magic-glow {
+      animation: pulseGlow 2.5s infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-primary-500 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm backdrop-blur-md bg-white/90">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-3xl filter drop-shadow">🔮</span>
+        <div>
+          <h1 class="text-xl font-bold bg-gradient-to-r from-violet-700 to-indigo-600 bg-clip-text text-transparent leading-tight">
+            排班
+          </h1>
+          <p class="text-xs text-slate-500">AI 智慧約束排班系統 • <span class="font-medium text-slate-600">Tony 老師</span></p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- Cloud Sync Status Badge -->
+        <div id="cloudSyncBadge" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 flex items-center gap-1.5 shadow-2xs" title="Firebase 雲端資料庫連線狀態">
+          <span id="cloudSyncDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="cloudSyncText" class="hidden md:inline font-medium">雲端連線中...</span>
+        </div>
+
+        <!-- Google Auth Section -->
+        <div id="authSection" class="flex items-center">
+          <!-- Logged Out Button -->
+          <button id="googleLoginBtn" onclick="loginWithGoogle()" class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition flex items-center gap-1.5 shadow-sm font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
+            </svg>
+            <span>Google 登入</span>
+          </button>
+
+          <!-- Logged In User Profile -->
+          <div id="userProfileBox" class="hidden items-center gap-2 bg-slate-100/90 border border-slate-200 px-2.5 py-1 rounded-xl">
+            <img id="userAvatar" src="" alt="Avatar" class="w-5 h-5 rounded-full border border-white shadow-2xs" onerror="this.src='https://placehold.co/40x40/7c3aed/ffffff?text=U'">
+            <span id="userNameText" class="text-xs font-semibold text-slate-700 max-w-[90px] truncate hidden sm:inline"></span>
+            <button onclick="logoutGoogle()" title="登出 Google 帳號" class="text-slate-400 hover:text-rose-600 transition p-0.5 rounded hover:bg-white">
+              <i class="ph ph-sign-out text-sm block"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Demo Preset Button -->
+        <button onclick="loadSampleData()" class="text-xs px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 transition flex items-center gap-1.5 shadow-sm">
+          <i class="ph ph-sparkle text-amber-500"></i>
+          <span class="hidden sm:inline">載入示範資料</span>
+        </button>
+
+        <!-- API Key Status / Setting Button -->
+        <button onclick="openApiKeyModal()" id="apiKeyStatusBtn" class="text-xs px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition flex items-center gap-1.5 shadow-sm font-medium">
+          <i class="ph ph-key text-violet-600"></i>
+          <span id="apiKeyStatusText">設定 API Key</span>
+        </button>
+
+        <!-- Clear All Button -->
+        <button onclick="openConfirmModal('確定要重設全部設定與清空成員資料嗎？此動作將同步清空雲端與本機狀態。', executeResetAll)" title="清空全部資料" class="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition">
+          <i class="ph ph-trash text-lg"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+    <!-- Notice Toast Container -->
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- LEFT COLUMN: Input & Config (35% on desktop ~ 4 cols or 5 cols) -->
+      <section class="lg:col-span-5 flex flex-col gap-6">
+
+        <!-- 1. Schedule Rules & Period Card -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm transition hover:shadow">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-sm">1</span>
+              <h2 class="font-bold text-slate-800 text-base">排班週期與班別設定</h2>
+            </div>
+            <span class="text-xs text-slate-400">規則約束</span>
+          </div>
+
+          <!-- Date Range Selection -->
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">起始日期</label>
+                <input type="date" id="startDate" onchange="handlePeriodChange()" class="w-full text-sm px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none transition">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">結束日期</label>
+                <input type="date" id="endDate" onchange="handlePeriodChange()" class="w-full text-sm px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none transition">
+              </div>
+            </div>
+            <div class="flex items-center justify-between text-xs text-slate-500 px-1">
+              <span>週期天數：<strong id="periodDaysCount" class="text-violet-600 font-semibold">0</strong> 天</span>
+              <button type="button" onclick="setQuickPeriod('currentMonth')" class="text-violet-600 hover:underline">設為當月全月</button>
+              <button type="button" onclick="setQuickPeriod('next7Days')" class="text-violet-600 hover:underline">未來 7 天</button>
+            </div>
+
+            <!-- Shift Definitions & Required Headcount -->
+            <div class="pt-2">
+              <label class="block text-xs font-semibold text-slate-600 mb-2">每日各班別需求人數</label>
+              <div class="space-y-2" id="shiftsConfigList">
+                <!-- Dynamically populated or default shifts -->
+              </div>
+            </div>
+
+            <!-- Fairness Constraints & New Custom Constraints -->
+            <div class="pt-3 border-t border-slate-100 space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">每人最多排班 (天)</label>
+                  <input type="number" id="maxShiftsPerPerson" value="5" min="1" max="31" class="w-full text-sm px-3 py-1.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">連續上班天數上限</label>
+                  <input type="number" id="maxConsecutiveDays" value="4" min="1" max="14" class="w-full text-sm px-3 py-1.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none">
+                </div>
+              </div>
+              
+              <!-- Newly Added Constraints -->
+              <div class="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100/60">
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">排休天數上限 (天/人)</label>
+                  <input type="number" id="maxDaysOffPerPerson" value="6" min="0" max="31" class="w-full text-sm px-3 py-1.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none" title="每位同仁於此週期內最多可排休的天數">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">週末可連休次數 (次)</label>
+                  <input type="number" id="maxWeekendOffCount" value="2" min="0" max="10" class="w-full text-sm px-3 py-1.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none" title="每位同仁於此週期內允許週六日連續休假的次數上限">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Staff Members & Preferences Card -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm transition hover:shadow flex flex-col">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">2</span>
+              <h2 class="font-bold text-slate-800 text-base">成員偏好管理</h2>
+              <span id="memberCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">0 人</span>
+            </div>
+            <button onclick="openMemberModal()" class="text-xs bg-violet-600 hover:bg-violet-700 text-white px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm font-medium">
+              <i class="ph ph-user-plus text-sm"></i>
+              <span>新增成員</span>
+            </button>
+          </div>
+
+          <!-- Member List Scrollable -->
+          <div id="membersContainer" class="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+            <!-- Dynamically populated member cards -->
+            <div id="emptyMemberPlaceholder" class="text-center py-8 text-slate-400">
+              <i class="ph ph-users text-4xl mb-2 opacity-50 block"></i>
+              <p class="text-sm">尚無排班成員，請點擊「新增成員」或「載入示範資料」</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. AI Trigger Action Card -->
+        <div class="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
+          <div class="absolute -right-4 -bottom-4 text-8xl text-white/10 select-none pointer-events-none">🔮</div>
+          <div class="relative z-10">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-2xl animate-spin-slow">✨</span>
+              <h3 class="font-bold text-lg tracking-wide">Gemini 智慧排班引擎</h3>
+            </div>
+            <p class="text-xs text-violet-100 mb-4 leading-relaxed">
+              即時綜合全體成員需休假、時段意願與人力最低需求，透過 Google Gemini 大語言模型運算全域最優解。
+            </p>
+
+            <button id="runAiBtn" onclick="runAiScheduling()" class="w-full py-3.5 px-4 bg-white hover:bg-violet-50 active:scale-[0.98] text-violet-800 font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-base">
+              <i class="ph ph-magic-wand text-xl text-violet-600"></i>
+              <span>🔮 啟動智慧排班</span>
+            </button>
+            <div id="aiProgressBox" class="mt-3 hidden">
+              <div class="flex items-center justify-between text-xs text-violet-100 mb-1 font-medium">
+                <span id="aiProgressStatus">正在構建約束 Prompt...</span>
+                <span id="aiProgressPercent">30%</span>
+              </div>
+              <div class="w-full bg-black/20 rounded-full h-1.5 overflow-hidden">
+                <div id="aiProgressBar" class="bg-white h-full rounded-full transition-all duration-300 w-1/3"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- RIGHT COLUMN: Interactive Calendar & Results (65% ~ 7 cols) -->
+      <section class="lg:col-span-7 flex flex-col gap-6">
+
+        <!-- Result Control & Stats Card -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">3</span>
+                <h2 class="font-bold text-slate-800 text-base">排班行事曆視圖</h2>
+                <span id="scheduleStatusTag" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">未排班</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1" id="scheduleSubinfo">請在左側配置好後點擊啟動排班</p>
+            </div>
+
+            <!-- Export & Action Buttons -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="exportToText()" id="btnExportText" disabled class="disabled:opacity-40 disabled:cursor-not-allowed text-xs px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition flex items-center gap-1 font-medium shadow-sm">
+                <i class="ph ph-copy text-sm"></i>
+                <span>複製 LINE 班表</span>
+              </button>
+              <button onclick="exportToCSV()" id="btnExportCsv" disabled class="disabled:opacity-40 disabled:cursor-not-allowed text-xs px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white transition flex items-center gap-1 font-medium shadow-sm">
+                <i class="ph ph-download-simple text-sm"></i>
+                <span>匯出 CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Schedule Statistics Bar -->
+          <div id="scheduleStatsContainer" class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 text-center">
+            <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+              <span class="block text-xs text-slate-500">排定總班次</span>
+              <strong id="statTotalAssignments" class="text-lg font-bold text-slate-800">-</strong>
+            </div>
+            <div class="bg-emerald-50 rounded-xl p-2.5 border border-emerald-100">
+              <span class="block text-xs text-emerald-700">休假意願尊重度</span>
+              <strong id="statHolidaySatisfaction" class="text-lg font-bold text-emerald-600">-</strong>
+            </div>
+            <div class="bg-amber-50 rounded-xl p-2.5 border border-amber-100">
+              <span class="block text-xs text-amber-700">未補足缺額</span>
+              <strong id="statUnassignedCount" class="text-lg font-bold text-amber-600">-</strong>
+            </div>
+            <div class="bg-indigo-50 rounded-xl p-2.5 border border-indigo-100">
+              <span class="block text-xs text-indigo-700">人均排班天數</span>
+              <strong id="statAvgShifts" class="text-lg font-bold text-indigo-600">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule Interactive Grid Table -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
+          <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="ph ph-calendar-blank text-slate-500"></i>
+              <span class="text-sm font-semibold text-slate-700">日期與班次矩陣</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-500"></span> 正常排班</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-rose-500"></span> 需休假衝突</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-400"></span> 缺額未派</span>
+            </div>
+          </div>
+
+          <!-- Calendar Table Wrapper -->
+          <div class="overflow-x-auto min-h-[380px] p-2" id="gridTableWrapper">
+            <div id="gridPlaceholder" class="flex flex-col items-center justify-center py-24 text-slate-400">
+              <i class="ph ph-calendar-x text-5xl mb-3 text-slate-300"></i>
+              <p class="font-medium text-slate-500 text-sm">目前無任何排班資料</p>
+              <p class="text-xs text-slate-400 mt-1">請於左側設定人員與規則後，點擊「🔮 啟動智慧排班」</p>
+            </div>
+            <table id="scheduleTable" class="w-full text-sm text-left border-collapse hidden">
+              <thead>
+                <tr class="bg-slate-100 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+                  <th class="p-3 w-32 sticky left-0 bg-slate-100 z-10">日期 / 星期</th>
+                  <!-- Dynamic Shift Columns Header -->
+                </tr>
+              </thead>
+              <tbody id="scheduleTableBody" class="divide-y divide-slate-100 font-normal text-slate-700">
+                <!-- Dynamic Rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Staff Workload Summary Breakdown -->
+        <div id="workloadSummaryCard" class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hidden">
+          <h3 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
+            <i class="ph ph-chart-bar text-violet-600"></i>
+            <span>各成員當期排班工時統計</span>
+          </h3>
+          <div id="workloadBadges" class="flex flex-wrap gap-2.5">
+            <!-- Dynamically populated pill badges -->
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- MODAL: Member Add/Edit Dialog -->
+  <div id="memberModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in duration-150">
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <h3 id="memberModalTitle" class="font-bold text-slate-800 text-base flex items-center gap-2">
+          <i class="ph ph-user text-violet-600"></i>
+          <span>新增排班成員</span>
+        </h3>
+        <button onclick="closeMemberModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 text-xl">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <form id="memberForm" onsubmit="handleSaveMember(event)" class="p-6 space-y-4">
+        <input type="hidden" id="editMemberId">
+
+        <!-- Name Input -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">同仁姓名 <span class="text-rose-500">*</span></label>
+          <input type="text" id="inputMemberName" required maxlength="20" placeholder="例如：王小明" class="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none">
+        </div>
+
+        <!-- Max Shifts Override for Person -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">個人排班上限天數 (選填)</label>
+          <input type="number" id="inputMemberMaxShifts" min="1" max="31" placeholder="留空則依預設規則" class="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none">
+        </div>
+
+        <!-- Requested Days Off (Multi-select or tag manager) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            需休假日 (指定排休)
+            <span class="text-xs font-normal text-slate-400">點擊新增當期休假日</span>
+          </label>
+          <div class="flex gap-2 mb-2">
+            <input type="date" id="inputDayOffPicker" class="text-sm px-3 py-1.5 border border-slate-300 rounded-xl flex-1 focus:ring-2 focus:ring-violet-500 focus:outline-none">
+            <button type="button" onclick="addDayOffFromPicker()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium transition">
+              加入休假
+            </button>
+          </div>
+          <!-- Days off tags list -->
+          <div id="daysOffContainer" class="min-h-[40px] p-2 bg-slate-50 border border-dashed border-slate-200 rounded-xl flex flex-wrap gap-1.5 text-xs text-slate-500">
+            <span class="text-slate-400 italic text-xs py-1">尚未選擇任何需休假日</span>
+          </div>
+        </div>
+
+        <!-- Available Shifts Checkboxes -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-2">可排時段意願 (可多選)</label>
+          <div id="memberShiftChoices" class="grid grid-cols-3 gap-2">
+            <!-- Dynamically populated shift checkboxes -->
+          </div>
+        </div>
+
+        <!-- Dialog Footer Actions -->
+        <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeMemberModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">
+            取消
+          </button>
+          <button type="submit" class="px-5 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-xl transition shadow">
+            儲存成員
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: API Key Setup Dialog -->
+  <div id="apiKeyModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in duration-150">
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+          <i class="ph ph-key text-violet-600"></i>
+          <span>設定 Google Gemini API Key</span>
+        </h3>
+        <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 text-xl">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <p class="text-xs text-slate-600 leading-relaxed">
+          本系統利用 Google Gemini API 執行最佳化智慧排班。<br>
+          在 Google AI Studio 產生的金鑰僅暫存於您的瀏覽器本機 (LocalStorage)，絕不上傳任何第三方伺服器。
+        </p>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">API Key</label>
+          <div class="relative">
+            <input type="password" id="inputApiKey" placeholder="AIzaSy..." class="w-full text-sm px-3.5 py-2 pr-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none">
+            <button type="button" onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+              <i class="ph ph-eye" id="toggleApiKeyIcon"></i>
+            </button>
+          </div>
+          <span class="text-[11px] text-slate-400 mt-1 block">提示：如留空，在特定支援環境中系統將嘗試呼叫預設授權管道。</span>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+          <button type="button" onclick="clearApiKey()" class="text-xs text-rose-500 hover:underline">
+            清除金鑰
+          </button>
+          <div class="flex gap-2">
+            <button type="button" onclick="closeApiKeyModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">
+              關閉
+            </button>
+            <button type="button" onclick="saveApiKey()" class="px-4 py-2 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-xl transition shadow">
+              儲存金鑰
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Export LINE / Text Preview Dialog -->
+  <div id="exportTextModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+          <i class="ph ph-chat-teardrop-text text-emerald-600"></i>
+          <span>班表純文字預覽 (適合 LINE/Slack)</span>
+        </h3>
+        <button onclick="closeExportTextModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 text-xl">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-3">
+        <textarea id="exportTextArea" rows="12" readonly class="w-full text-xs font-mono p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none selection:bg-emerald-200"></textarea>
+        <div class="flex items-center justify-end gap-2">
+          <button onclick="closeExportTextModal()" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl">
+            關閉
+          </button>
+          <button onclick="copyExportText()" class="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition flex items-center gap-1 shadow">
+            <i class="ph ph-copy"></i>
+            <span>複製文字</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Custom Confirm Dialog (No native confirm()) -->
+  <div id="confirmModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden p-6 space-y-4">
+      <div class="flex items-center gap-3 text-rose-600">
+        <div class="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+          <i class="ph ph-warning-circle text-2xl"></i>
+        </div>
+        <h3 class="font-bold text-slate-800 text-base">確認操作</h3>
+      </div>
+      <p id="confirmModalMessage" class="text-xs text-slate-600 leading-relaxed"></p>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="closeConfirmModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">
+          取消
+        </button>
+        <button type="button" id="confirmModalActionBtn" class="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow">
+          確定執行
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Domain Authorization Guide & Quick Login Fallback -->
+  <div id="authDomainModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-150">
+      <div class="px-6 py-4 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+        <h3 class="font-bold text-amber-900 text-base flex items-center gap-2">
+          <i class="ph ph-shield-warning text-amber-600 text-xl"></i>
+          <span>Google 登入網域授權提示</span>
+        </h3>
+        <button onclick="closeAuthDomainModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 text-xl">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Firebase 基於安全限制，要求使用 Google 彈窗登入前，必須將目前的<strong>預覽環境網域</strong>加入 Firebase 後台白名單。
+        </p>
+
+        <!-- Option 1: Instant Simulated Google Login for Preview/Sandbox -->
+        <div class="p-4 bg-violet-50/80 border border-violet-200 rounded-xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-violet-900 flex items-center gap-1.5">
+              <i class="ph ph-lightning text-violet-600"></i>
+              方式 A：預覽環境快速登入（推薦測試用）
+            </span>
+            <span class="text-[10px] px-2 py-0.5 bg-violet-200 text-violet-800 rounded-full font-semibold">免改後台</span>
+          </div>
+          <p class="text-[11px] text-violet-700 leading-relaxed">
+            如果您正在沙盒預覽環境操作，可直接輸入名稱啟用模擬 Google 帳號登入，立即體驗完整功能與雲端同步：
+          </p>
+          <div class="flex gap-2 pt-1">
+            <input type="text" id="mockGoogleUserName" value="Tony 老師 (Google)" placeholder="輸入顯示名稱" class="text-xs px-3 py-2 bg-white border border-violet-300 rounded-xl flex-1 focus:ring-2 focus:ring-violet-500 focus:outline-none font-medium text-slate-700">
+            <button type="button" onclick="confirmMockGoogleLogin()" class="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-xl transition shadow-sm shrink-0 flex items-center gap-1">
+              <i class="ph ph-sign-in"></i>
+              <span>立即登入</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Option 2: Add Current Domain to Firebase Console -->
+        <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <i class="ph ph-gear text-slate-600"></i>
+            方式 B：在 Firebase 後台授權此網域（正式環境）
+          </span>
+          <ol class="text-[11px] text-slate-600 list-decimal list-inside space-y-1 leading-relaxed">
+            <li>前往 Firebase Console &rarr; <strong>Authentication</strong></li>
+            <li>點選 <strong>Settings (設定)</strong> &rarr; <strong>Authorized domains (已授權網域)</strong></li>
+            <li>點擊「新增網域」，貼上下方偵測到的目前網域：</li>
+          </ol>
+          <div class="flex items-center gap-2 pt-1">
+            <input type="text" id="detectedDomainInput" readonly class="text-xs font-mono px-3 py-1.5 bg-white border border-slate-300 rounded-lg flex-1 text-slate-700 select-all focus:outline-none">
+            <button type="button" onclick="copyCurrentDomain()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium rounded-lg transition flex items-center gap-1 shrink-0">
+              <i class="ph ph-copy"></i>
+              <span>複製網域</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeAuthDomainModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">
+            先略過
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Brand Footer as Required in PRD -->
+  <footer class="mt-auto bg-white border-t border-slate-200 py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
+      <div class="flex items-center space-x-2">
+        <span class="text-base">🔮</span>
+        <span class="font-semibold text-slate-700">排班 (Shift Scheduling System)</span>
+        <span>•</span>
+        <span>創作者：Tony 老師</span>
+      </div>
+      <div class="text-center sm:text-right font-medium text-slate-600">
+        &copy; 2020 TonyStudio (TONY 楊文澤顧問). All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+      getAuth, 
+      signInAnonymously, 
+      signInWithCustomToken, 
+      GoogleAuthProvider, 
+      signInWithPopup, 
+      signOut, 
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // 使用者指定的 Firebase SDK 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyC8aEgvtCH2-8KpVapH4hWl-aPkGUoAqwY",
+      authDomain: "schedule-f85d0.firebaseapp.com",
+      projectId: "schedule-f85d0",
+      storageBucket: "schedule-f85d0.firebasestorage.app",
+      messagingSenderId: "742652914084",
+      appId: "1:742652914084:web:530fc4782b6d6f4e71b931",
+      measurementId: "G-B4JEF6RWHK"
+    };
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'schedule-f85d0';
+    let app, auth, db;
+    let currentUser = null;
+    let unsubscribeSnapshot = null;
+
+    async function initFirebaseCloud() {
+      try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        // 監聽身分驗證狀態變更 (支援 Google 登入、匿名登入與登出切換)
+        onAuthStateChanged(auth, (user) => {
+          const savedMockUser = localStorage.getItem('tony_shift_mock_google_user');
+          if (savedMockUser) {
+            try {
+              currentUser = JSON.parse(savedMockUser);
+              updateAuthUI(currentUser);
+              setupFirestoreSync();
+              return;
+            } catch (_) {}
+          }
+
+          if (user) {
+            currentUser = user;
+            updateAuthUI(user);
+            setupFirestoreSync();
+          } else {
+            currentUser = null;
+            updateAuthUI(null);
+          }
+        });
+
+        // 初始預設驗證嘗試
+        try {
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else if (!auth.currentUser) {
+            await signInAnonymously(auth);
+          }
+        } catch (authErr) {
+          console.warn("初始自動驗證提示 (可使用上方 Google 登入):", authErr.message);
+          currentUser = { uid: 'default_manager', isAnonymous: true };
+          setupFirestoreSync();
+        }
+
+        // 暴露 Google 登入函式
+        window.loginWithGoogle = async () => {
+          try {
+            const provider = new GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
+            const result = await signInWithPopup(auth, provider);
+            localStorage.removeItem('tony_shift_mock_google_user');
+            currentUser = result.user;
+            updateAuthUI(currentUser);
+            if (window.showToast) {
+              window.showToast(`🎉 歡迎回來，${currentUser.displayName || currentUser.email}！`, "emerald");
+            }
+            if (window.syncStateToFirebase) {
+              window.syncStateToFirebase();
+            }
+          } catch (err) {
+            if (err.code === 'auth/unauthorized-domain') {
+              console.warn("目前網域尚未加入 Firebase Authorized domains，已開啟快速登入與授權引導視窗。");
+              openAuthDomainModal();
+              return;
+            } else if (err.code === 'auth/popup-closed-by-user') {
+              if (window.showToast) window.showToast("已取消 Google 登入視窗。", "slate");
+              return;
+            } else if (err.code === 'auth/operation-not-allowed') {
+              openAuthDomainModal();
+              if (window.showToast) window.showToast("請確認已在 Firebase 後台開啟 Google 登入供應商，或使用快速模擬登入。", "amber");
+              return;
+            }
+            console.warn("Google 登入提示:", err.message);
+            openAuthDomainModal();
+          }
+        };
+
+        // 暴露快速模擬 Google 登入函式 (解決沙盒預覽網域無法即時綁定之問題)
+        window.confirmMockGoogleLogin = () => {
+          const nameInput = document.getElementById('mockGoogleUserName');
+          const customName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'Tony 老師';
+          const mockUser = {
+            uid: 'google_user_' + Date.now(),
+            displayName: customName,
+            email: 'tony.studio@gmail.com',
+            photoURL: `https://placehold.co/80x80/7c3aed/ffffff?text=${encodeURIComponent(customName.charAt(0))}`,
+            isAnonymous: false,
+            isMockGoogle: true
+          };
+          localStorage.setItem('tony_shift_mock_google_user', JSON.stringify(mockUser));
+          currentUser = mockUser;
+          updateAuthUI(currentUser);
+          closeAuthDomainModal();
+          if (window.showToast) {
+            window.showToast(`🎉 已透過 Google 身分登入：${customName}！`, "emerald");
+          }
+          if (window.syncStateToFirebase) {
+            window.syncStateToFirebase();
+          }
+        };
+
+        // 暴露 Google 登出函式
+        window.logoutGoogle = async () => {
+          try {
+            localStorage.removeItem('tony_shift_mock_google_user');
+            if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+              await signOut(auth);
+            }
+            currentUser = null;
+            updateAuthUI(null);
+            if (window.showToast) window.showToast("已登出 Google 帳號", "slate");
+            // 登出後嘗試切換回匿名連線以維持基本運作
+            try {
+              await signInAnonymously(auth);
+            } catch (_) {
+              updateCloudStatusUI('local', '本機快取模式');
+            }
+          } catch (err) {
+            console.warn("登出處理提示:", err.message);
+          }
+        };
+
+        // 暴露雲端寫入函式供主程式呼叫
+        window.syncStateToFirebase = async () => {
+          if (!db) return;
+          try {
+            updateCloudStatusUI('syncing', '雲端同步中...');
+            const stateObj = window.getAppState ? window.getAppState() : null;
+            if (!stateObj) return;
+
+            const scheduleDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'schedules', 'main_schedule');
+            await setDoc(
+              scheduleDocRef,
+              {
+                title: "排班",
+                membersJson: JSON.stringify(stateObj.members || []),
+                settingsJson: JSON.stringify(stateObj.settings || {}),
+                scheduleResultJson: JSON.stringify(stateObj.scheduleResult || null),
+                updatedAt: new Date().toISOString(),
+                updatedBy: currentUser ? currentUser.uid : 'anonymous',
+                updatedByName: currentUser && !currentUser.isAnonymous ? (currentUser.displayName || currentUser.email) : '匿名管理者'
+              },
+              { merge: true }
+            );
+            updateCloudStatusUI('connected', 'Firebase 已同步');
+          } catch (err) {
+            console.warn("同步至 Firestore 失敗 (已自動保全於本機):", err.message);
+            updateCloudStatusUI('local', '已存於本機');
+          }
+        };
+      } catch (e) {
+        console.error("Firebase 初始化錯誤:", e);
+        updateCloudStatusUI('local', '本機模式');
+      }
+    }
+
+    function setupFirestoreSync() {
+      if (!db) return;
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+
+      const scheduleDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'schedules', 'main_schedule');
+      unsubscribeSnapshot = onSnapshot(
+        scheduleDocRef,
+        (snapshot) => {
+          updateCloudStatusUI('connected', 'Firebase 已同步');
+          if (snapshot.exists()) {
+            const cloudData = snapshot.data();
+            if (window.applyCloudState) {
+              window.applyCloudState(cloudData);
+            }
+          } else {
+            if (window.syncStateToFirebase) {
+              window.syncStateToFirebase();
+            }
+          }
+        },
+        (error) => {
+          console.warn("Firestore 即時監聽提示:", error.message);
+          updateCloudStatusUI('local', '本機快取模式');
+        }
+      );
+    }
+
+    function updateAuthUI(user) {
+      const loginBtn = document.getElementById('googleLoginBtn');
+      const profileBox = document.getElementById('userProfileBox');
+      const avatar = document.getElementById('userAvatar');
+      const nameText = document.getElementById('userNameText');
+
+      if (!loginBtn || !profileBox) return;
+
+      if (user && !user.isAnonymous) {
+        loginBtn.classList.add('hidden');
+        profileBox.classList.remove('hidden');
+        profileBox.classList.add('flex');
+        nameText.innerText = user.displayName || user.email || '已登入使用者';
+        avatar.src = user.photoURL || `https://placehold.co/40x40/7c3aed/ffffff?text=${encodeURIComponent((user.displayName || 'U').charAt(0))}`;
+      } else {
+        loginBtn.classList.remove('hidden');
+        profileBox.classList.add('hidden');
+        profileBox.classList.remove('flex');
+      }
+    }
+
+    function updateCloudStatusUI(status, text) {
+      const badge = document.getElementById('cloudSyncBadge');
+      const dot = document.getElementById('cloudSyncDot');
+      const label = document.getElementById('cloudSyncText');
+      if (!badge || !dot || !label) return;
+
+      label.innerText = text;
+      if (status === 'connected') {
+        badge.className = "text-xs px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 flex items-center gap-1.5 shadow-2xs";
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+      } else if (status === 'syncing') {
+        badge.className = "text-xs px-2.5 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700 flex items-center gap-1.5 shadow-2xs";
+        dot.className = "w-2 h-2 rounded-full bg-violet-500 animate-ping";
+      } else {
+        badge.className = "text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 flex items-center gap-1.5 shadow-2xs";
+        dot.className = "w-2 h-2 rounded-full bg-slate-400";
+      }
+    }
+
+    initFirebaseCloud();
+  </script>
+
+  <script>
+    /* =========================================================================
+     *  🔮 SHIFT SCHEDULING SYSTEM - CORE STATE & ENGINE
+     *  遵循 PRD 規格書之純前端單一檔案架構 (Vanilla JS + Firebase + LocalStorage + Gemini API)
+     * ========================================================================= */
+
+    // LocalStorage Keys as defined in PRD Section 6.1
+    const STORAGE_KEYS = {
+      API_KEY: 'tony_shift_api_key',
+      MEMBERS: 'tony_shift_members',
+      SETTINGS: 'tony_shift_settings',
+      LATEST_RESULT: 'tony_shift_latest_result'
+    };
+
+    // Default predefined shift types
+    const DEFAULT_SHIFTS = [
+      { id: 'M', name: '早班 (08:00-16:00)', requiredCount: 2, badgeColor: 'bg-amber-100 text-amber-800 border-amber-200' },
+      { id: 'A', name: '中班 (12:00-20:00)', requiredCount: 1, badgeColor: 'bg-blue-100 text-blue-800 border-blue-200' },
+      { id: 'N', name: '晚班 (16:00-24:00)', requiredCount: 2, badgeColor: 'bg-purple-100 text-purple-800 border-purple-200' }
+    ];
+
+    // Global in-memory state
+    let state = {
+      apiKey: '',
+      members: [],
+      settings: {
+        startDate: '',
+        endDate: '',
+        maxShiftsPerPerson: 5,
+        maxConsecutiveDays: 4,
+        maxDaysOffPerPerson: 6,
+        maxWeekendOffCount: 2,
+        shifts: JSON.parse(JSON.stringify(DEFAULT_SHIFTS))
+      },
+      scheduleResult: null // Holds the latest assignments
+    };
+
+    // Temporary storage for days-off while editing modal
+    let currentModalDaysOff = [];
+    let isApplyingCloudUpdate = false;
+    let confirmCallback = null;
+
+    // Expose state getter & cloud state merger for Firebase module
+    window.getAppState = () => state;
+    window.applyCloudState = (cloudData) => {
+      try {
+        isApplyingCloudUpdate = true;
+        if (cloudData.membersJson) {
+          state.members = JSON.parse(cloudData.membersJson);
+        }
+        if (cloudData.settingsJson) {
+          const parsedSettings = JSON.parse(cloudData.settingsJson);
+          state.settings = { ...state.settings, ...parsedSettings };
+        }
+        if (cloudData.scheduleResultJson) {
+          state.scheduleResult = JSON.parse(cloudData.scheduleResultJson);
+        }
+        saveStateToStorage(true); // Only save to local cache without re-triggering cloud loop
+        renderAll();
+      } catch (e) {
+        console.error("套用雲端資料失敗:", e);
+      } finally {
+        isApplyingCloudUpdate = false;
+      }
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadStateFromStorage();
+      initializeDefaultDatesIfEmpty();
+      renderAll();
+    });
+
+    function loadStateFromStorage() {
+      try {
+        state.apiKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
+        const savedMembers = localStorage.getItem(STORAGE_KEYS.MEMBERS);
+        if (savedMembers) state.members = JSON.parse(savedMembers);
+
+        const savedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          state.settings = { ...state.settings, ...parsed };
+          // Ensure shifts are merged properly
+          if (!state.settings.shifts || state.settings.shifts.length === 0) {
+            state.settings.shifts = JSON.parse(JSON.stringify(DEFAULT_SHIFTS));
+          }
+        }
+
+        const savedResult = localStorage.getItem(STORAGE_KEYS.LATEST_RESULT);
+        if (savedResult) state.scheduleResult = JSON.parse(savedResult);
+      } catch (err) {
+        console.error("載入本機快取失敗:", err);
+      }
+    }
+
+    function saveStateToStorage(skipCloudSync = false) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.API_KEY, state.apiKey);
+        localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(state.members));
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(state.settings));
+        if (state.scheduleResult) {
+          localStorage.setItem(STORAGE_KEYS.LATEST_RESULT, JSON.stringify(state.scheduleResult));
+        } else {
+          localStorage.removeItem(STORAGE_KEYS.LATEST_RESULT);
+        }
+
+        if (!skipCloudSync && !isApplyingCloudUpdate && typeof window.syncStateToFirebase === 'function') {
+          window.syncStateToFirebase();
+        }
+      } catch (e) {
+        showToast("⚠️ 本機儲存空間不足，請適當清理快取！", "rose");
+      }
+    }
+
+    function initializeDefaultDatesIfEmpty() {
+      if (!state.settings.startDate || !state.settings.endDate) {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0); // End of month
+        state.settings.startDate = formatDate(start);
+        state.settings.endDate = formatDate(end);
+      }
+    }
+
+    function formatDate(d) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getDayOfWeekName(dateStr) {
+      const days = ['日', '一', '二', '三', '四', '五', '六'];
+      const date = new Date(dateStr);
+      return days[date.getDay()];
+    }
+
+    function renderAll() {
+      renderApiKeyStatus();
+      renderSettingsInputs();
+      renderShiftsConfig();
+      renderMembersList();
+      renderScheduleGrid();
+    }
+
+    function renderApiKeyStatus() {
+      const statusText = document.getElementById('apiKeyStatusText');
+      const btn = document.getElementById('apiKeyStatusBtn');
+      if (state.apiKey && state.apiKey.trim().length > 0) {
+        statusText.innerText = "API Key 已設定";
+        btn.className = "text-xs px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition flex items-center gap-1.5 shadow-sm font-medium";
+      } else {
+        statusText.innerText = "設定 API Key";
+        btn.className = "text-xs px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition flex items-center gap-1.5 shadow-sm font-medium";
+      }
+    }
+
+    function renderSettingsInputs() {
+      document.getElementById('startDate').value = state.settings.startDate;
+      document.getElementById('endDate').value = state.settings.endDate;
+      document.getElementById('maxShiftsPerPerson').value = state.settings.maxShiftsPerPerson || 5;
+      document.getElementById('maxConsecutiveDays').value = state.settings.maxConsecutiveDays || 4;
+      document.getElementById('maxDaysOffPerPerson').value = state.settings.maxDaysOffPerPerson !== undefined ? state.settings.maxDaysOffPerPerson : 6;
+      document.getElementById('maxWeekendOffCount').value = state.settings.maxWeekendOffCount !== undefined ? state.settings.maxWeekendOffCount : 2;
+      calculatePeriodDays();
+    }
+
+    function calculatePeriodDays() {
+      const start = new Date(document.getElementById('startDate').value);
+      const end = new Date(document.getElementById('endDate').value);
+      if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
+        document.getElementById('periodDaysCount').innerText = '0';
+        return;
+      }
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      document.getElementById('periodDaysCount').innerText = diffDays;
+    }
+
+    function handlePeriodChange() {
+      state.settings.startDate = document.getElementById('startDate').value;
+      state.settings.endDate = document.getElementById('endDate').value;
+      calculatePeriodDays();
+      saveStateToStorage();
+    }
+
+    function setQuickPeriod(type) {
+      const today = new Date();
+      if (type === 'currentMonth') {
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        state.settings.startDate = formatDate(start);
+        state.settings.endDate = formatDate(end);
+      } else if (type === 'next7Days') {
+        const start = today;
+        const end = new Date();
+        end.setDate(today.getDate() + 6);
+        state.settings.startDate = formatDate(start);
+        state.settings.endDate = formatDate(end);
+      }
+      renderSettingsInputs();
+      saveStateToStorage();
+      showToast("已更新排班週期區間", "violet");
+    }
+
+    function renderShiftsConfig() {
+      const container = document.getElementById('shiftsConfigList');
+      container.innerHTML = '';
+
+      state.settings.shifts.forEach((shift, index) => {
+        const item = document.createElement('div');
+        item.className = "flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs";
+        item.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-md bg-violet-600 text-white font-bold flex items-center justify-center text-[11px]">${shift.id}</span>
+            <span class="font-medium text-slate-700">${shift.name}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-500">每日需</span>
+            <input type="number" min="0" max="10" value="${shift.requiredCount}" 
+              onchange="updateShiftCount(${index}, this.value)"
+              class="w-14 text-center py-1 border border-slate-300 rounded-lg text-xs font-semibold focus:ring-1 focus:ring-violet-500">
+            <span class="text-slate-500">人</span>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function updateShiftCount(index, val) {
+      state.settings.shifts[index].requiredCount = parseInt(val) || 0;
+      saveStateToStorage();
+    }
+
+    function renderMembersList() {
+      const container = document.getElementById('membersContainer');
+      const badge = document.getElementById('memberCountBadge');
+      badge.innerText = `${state.members.length} 人`;
+
+      if (state.members.length === 0) {
+        container.innerHTML = `
+          <div id="emptyMemberPlaceholder" class="text-center py-10 text-slate-400">
+            <i class="ph ph-users text-4xl mb-2 opacity-50 block"></i>
+            <p class="text-sm">尚無排班成員</p>
+            <p class="text-xs text-slate-400 mt-1">點擊上方「新增成員」或「載入示範資料」</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      state.members.forEach((m) => {
+        const card = document.createElement('div');
+        card.className = "p-3 bg-white border border-slate-200 rounded-xl hover:border-violet-300 transition shadow-xs flex flex-col gap-2";
+
+        const availableShiftsLabels = m.availableShifts && m.availableShifts.length > 0 
+          ? m.availableShifts.map(sid => {
+              const sf = state.settings.shifts.find(s => s.id === sid);
+              return `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[11px] font-medium">${sf ? sf.name.split(' ')[0] : sid}</span>`;
+            }).join(' ')
+          : '<span class="text-[11px] text-slate-400">時段皆可</span>';
+
+        const daysOffCount = (m.requestedDaysOff && m.requestedDaysOff.length) || 0;
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-500 to-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+                ${m.name.charAt(0)}
+              </div>
+              <div>
+                <h4 class="font-bold text-slate-800 text-sm">${m.name}</h4>
+                <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                  <span>指定排休: <strong class="${daysOffCount > 0 ? 'text-rose-500 font-semibold' : 'text-slate-500'}">${daysOffCount}</strong> 天</span>
+                  ${m.maxShifts ? `<span>• 上限: ${m.maxShifts} 天</span>` : ''}
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button onclick="editMember('${m.id}')" title="編輯" class="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition">
+                <i class="ph ph-pencil-simple text-sm"></i>
+              </button>
+              <button onclick="deleteMember('${m.id}')" title="刪除" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition">
+                <i class="ph ph-trash text-sm"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+            <span class="text-slate-400 text-[11px]">意願班別：</span>
+            <div class="flex gap-1 flex-wrap">${availableShiftsLabels}</div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function openMemberModal(memberId = null) {
+      const modal = document.getElementById('memberModal');
+      const form = document.getElementById('memberForm');
+      form.reset();
+      currentModalDaysOff = [];
+
+      // Render Shift checkboxes
+      const shiftsChoiceContainer = document.getElementById('memberShiftChoices');
+      shiftsChoiceContainer.innerHTML = '';
+      state.settings.shifts.forEach(shift => {
+        shiftsChoiceContainer.innerHTML += `
+          <label class="flex items-center gap-2 p-2 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 text-xs select-none">
+            <input type="checkbox" name="shifts" value="${shift.id}" checked class="rounded text-violet-600 focus:ring-violet-500">
+            <span class="font-medium text-slate-700">${shift.name.split(' ')[0]}</span>
+          </label>
+        `;
+      });
+
+      if (memberId) {
+        const m = state.members.find(x => x.id === memberId);
+        if (m) {
+          document.getElementById('memberModalTitle').innerHTML = '<i class="ph ph-pencil-simple text-violet-600"></i><span>編輯成員資料</span>';
+          document.getElementById('editMemberId').value = m.id;
+          document.getElementById('inputMemberName').value = m.name;
+          document.getElementById('inputMemberMaxShifts').value = m.maxShifts || '';
+          currentModalDaysOff = [...(m.requestedDaysOff || [])];
+
+          // Check appropriate shifts
+          const checkboxes = document.querySelectorAll('#memberShiftChoices input[type="checkbox"]');
+          checkboxes.forEach(cb => {
+            cb.checked = (m.availableShifts || []).includes(cb.value);
+          });
+        }
+      } else {
+        document.getElementById('memberModalTitle').innerHTML = '<i class="ph ph-user-plus text-violet-600"></i><span>新增排班成員</span>';
+        document.getElementById('editMemberId').value = '';
+      }
+
+      renderModalDaysOffTags();
+      modal.classList.remove('hidden');
+    }
+
+    function closeMemberModal() {
+      document.getElementById('memberModal').classList.add('hidden');
+    }
+
+    function addDayOffFromPicker() {
+      const picker = document.getElementById('inputDayOffPicker');
+      const dateVal = picker.value;
+      if (!dateVal) return;
+      if (!currentModalDaysOff.includes(dateVal)) {
+        currentModalDaysOff.push(dateVal);
+        currentModalDaysOff.sort();
+        renderModalDaysOffTags();
+      }
+      picker.value = '';
+    }
+
+    function removeDayOff(dateStr) {
+      currentModalDaysOff = currentModalDaysOff.filter(d => d !== dateStr);
+      renderModalDaysOffTags();
+    }
+
+    function renderModalDaysOffTags() {
+      const container = document.getElementById('daysOffContainer');
+      if (currentModalDaysOff.length === 0) {
+        container.innerHTML = '<span class="text-slate-400 italic text-xs py-1">尚未選擇任何需休假日</span>';
+        return;
+      }
+      container.innerHTML = currentModalDaysOff.map(d => `
+        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-xs font-medium">
+          <span>${d} (${getDayOfWeekName(d)})</span>
+          <button type="button" onclick="removeDayOff('${d}')" class="hover:text-rose-900"><i class="ph ph-x"></i></button>
+        </span>
+      `).join('');
+    }
+
+    function handleSaveMember(e) {
+      e.preventDefault();
+      const id = document.getElementById('editMemberId').value;
+      const name = document.getElementById('inputMemberName').value.trim();
+      const maxShiftsVal = document.getElementById('inputMemberMaxShifts').value;
+      const maxShifts = maxShiftsVal ? parseInt(maxShiftsVal) : null;
+
+      const checkedShifts = Array.from(document.querySelectorAll('#memberShiftChoices input[type="checkbox"]:checked')).map(cb => cb.value);
+
+      if (name.length === 0) return;
+
+      if (id) {
+        // Edit existing
+        const index = state.members.findIndex(m => m.id === id);
+        if (index !== -1) {
+          state.members[index] = {
+            ...state.members[index],
+            name,
+            maxShifts,
+            requestedDaysOff: [...currentModalDaysOff],
+            availableShifts: checkedShifts
+          };
+          showToast(`已更新成員「${name}」資訊`, "violet");
+        }
+      } else {
+        // Create new
+        const newMember = {
+          id: 'mem_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+          name,
+          maxShifts,
+          requestedDaysOff: [...currentModalDaysOff],
+          availableShifts: checkedShifts
+        };
+        state.members.push(newMember);
+        showToast(`已新增成員「${name}」`, "violet");
+      }
+
+      saveStateToStorage();
+      renderMembersList();
+      closeMemberModal();
+    }
+
+    function editMember(id) {
+      openMemberModal(id);
+    }
+
+    function deleteMember(id) {
+      const member = state.members.find(m => m.id === id);
+      openConfirmModal(`確定要刪除成員「${member ? member.name : ''}」嗎？`, () => {
+        state.members = state.members.filter(m => m.id !== id);
+        saveStateToStorage();
+        renderMembersList();
+        showToast("成員已刪除", "slate");
+      });
+    }
+
+    function openConfirmModal(message, onConfirm) {
+      document.getElementById('confirmModalMessage').innerText = message;
+      confirmCallback = onConfirm;
+      const btn = document.getElementById('confirmModalActionBtn');
+      btn.onclick = () => {
+        if (typeof confirmCallback === 'function') confirmCallback();
+        closeConfirmModal();
+      };
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirmModal').classList.add('hidden');
+      confirmCallback = null;
+    }
+
+    function loadSampleData() {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      const end = new Date(today.getFullYear(), today.getMonth(), 14); // 14-day sample
+
+      const startStr = formatDate(start);
+      const endStr = formatDate(end);
+
+      state.settings.startDate = startStr;
+      state.settings.endDate = endStr;
+      state.settings.maxShiftsPerPerson = 8;
+      state.settings.maxConsecutiveDays = 4;
+
+      // Sample team of 7 people with realistic preferences
+      state.members = [
+        {
+          id: "m_1",
+          name: "艾倫 (店長)",
+          requestedDaysOff: [formatOffsetDate(start, 2), formatOffsetDate(start, 8)],
+          availableShifts: ["M", "A"],
+          maxShifts: 8
+        },
+        {
+          id: "m_2",
+          name: "雅婷 (副店)",
+          requestedDaysOff: [formatOffsetDate(start, 5), formatOffsetDate(start, 6)],
+          availableShifts: ["M", "A", "N"],
+          maxShifts: 9
+        },
+        {
+          id: "m_3",
+          name: "志強 (資深)",
+          requestedDaysOff: [formatOffsetDate(start, 0), formatOffsetDate(start, 7)],
+          availableShifts: ["N"],
+          maxShifts: 7
+        },
+        {
+          id: "m_4",
+          name: "美美 (正職)",
+          requestedDaysOff: [formatOffsetDate(start, 3), formatOffsetDate(start, 10)],
+          availableShifts: ["M", "N"],
+          maxShifts: 8
+        },
+        {
+          id: "m_5",
+          name: "柏翰 (正職)",
+          requestedDaysOff: [formatOffsetDate(start, 4), formatOffsetDate(start, 11)],
+          availableShifts: ["M", "A", "N"],
+          maxShifts: 8
+        },
+        {
+          id: "m_6",
+          name: "冠宇 (兼職)",
+          requestedDaysOff: [formatOffsetDate(start, 1), formatOffsetDate(start, 2), formatOffsetDate(start, 3)],
+          availableShifts: ["N"],
+          maxShifts: 5
+        },
+        {
+          id: "m_7",
+          name: "欣怡 (兼職)",
+          requestedDaysOff: [formatOffsetDate(start, 6), formatOffsetDate(start, 13)],
+          availableShifts: ["A", "N"],
+          maxShifts: 5
+        }
+      ];
+
+      saveStateToStorage();
+      renderAll();
+      showToast("已成功載入 7 位同仁與排班規則示範資料！", "emerald");
+    }
+
+    function formatOffsetDate(baseDate, offsetDays) {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + offsetDays);
+      return formatDate(d);
+    }
+
+    function openApiKeyModal() {
+      document.getElementById('inputApiKey').value = state.apiKey || '';
+      document.getElementById('apiKeyModal').classList.remove('hidden');
+    }
+
+    function closeApiKeyModal() {
+      document.getElementById('apiKeyModal').classList.add('hidden');
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('inputApiKey').value.trim();
+      state.apiKey = key;
+      saveStateToStorage();
+      renderApiKeyStatus();
+      closeApiKeyModal();
+      showToast("API Key 已成功儲存於瀏覽器！", "emerald");
+    }
+
+    function clearApiKey() {
+      state.apiKey = '';
+      document.getElementById('inputApiKey').value = '';
+      saveStateToStorage();
+      renderApiKeyStatus();
+      closeApiKeyModal();
+      showToast("已清除儲存的 API Key", "slate");
+    }
+
+    function toggleApiKeyVisibility() {
+      const input = document.getElementById('inputApiKey');
+      const icon = document.getElementById('toggleApiKeyIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'ph ph-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'ph ph-eye';
+      }
+    }
+
+    function openAuthDomainModal() {
+      const domainInput = document.getElementById('detectedDomainInput');
+      const host = window.location.hostname || window.location.host || '預覽沙盒網域 (請使用上方方式 A 快速登入)';
+      if (domainInput) {
+        domainInput.value = host;
+      }
+      document.getElementById('authDomainModal').classList.remove('hidden');
+    }
+
+    function closeAuthDomainModal() {
+      document.getElementById('authDomainModal').classList.add('hidden');
+    }
+
+    function copyCurrentDomain() {
+      const domainInput = document.getElementById('detectedDomainInput');
+      if (!domainInput) return;
+      domainInput.select();
+      document.execCommand('copy');
+      showToast(`已複製網域「${domainInput.value}」！請至 Firebase 後台貼上`, "emerald");
+    }
+
+    async function runAiScheduling() {
+      // 1. Validation checks
+      if (state.members.length === 0) {
+        showToast("請先新增至少一位排班成員！", "rose");
+        return;
+      }
+
+      state.settings.maxShiftsPerPerson = parseInt(document.getElementById('maxShiftsPerPerson').value) || 5;
+      state.settings.maxConsecutiveDays = parseInt(document.getElementById('maxConsecutiveDays').value) || 4;
+      state.settings.maxDaysOffPerPerson = parseInt(document.getElementById('maxDaysOffPerPerson').value) || 6;
+      state.settings.maxWeekendOffCount = parseInt(document.getElementById('maxWeekendOffCount').value) || 2;
+
+      const startDate = state.settings.startDate;
+      const endDate = state.settings.endDate;
+
+      if (!startDate || !endDate || new Date(endDate) < new Date(startDate)) {
+        showToast("請設定有效的排班起始與結束日期！", "rose");
+        return;
+      }
+
+      // Check date span
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
+      if (diffDays > 31) {
+        showToast("為確保排班精確度，單次排班期間建議在 31 天以內！", "amber");
+      }
+
+      // 2. UI Loading State
+      const runBtn = document.getElementById('runAiBtn');
+      const progressBox = document.getElementById('aiProgressBox');
+      const progressBar = document.getElementById('aiProgressBar');
+      const progressStatus = document.getElementById('aiProgressStatus');
+      const progressPercent = document.getElementById('aiProgressPercent');
+
+      runBtn.disabled = true;
+      runBtn.classList.add('opacity-75', 'cursor-not-allowed');
+      progressBox.classList.remove('hidden');
+      progressBar.style.width = '25%';
+      progressStatus.innerText = '正在建構約束條件矩陣...';
+      progressPercent.innerText = '25%';
+
+      try {
+        // Construct dates list
+        const datesList = [];
+        let curr = new Date(start);
+        while (curr <= end) {
+          datesList.push(formatDate(curr));
+          curr.setDate(curr.getDate() + 1);
+        }
+
+        // 3. Prepare payload & system prompt
+        progressStatus.innerText = '向 Google Gemini 發送智慧排班請求...';
+        progressBar.style.width = '55%';
+        progressPercent.innerText = '55%';
+
+        const promptData = {
+          schedulePeriod: {
+            startDate,
+            endDate,
+            dates: datesList
+          },
+          shiftDefinitions: state.settings.shifts.map(s => ({
+            shiftId: s.id,
+            shiftName: s.name,
+            requiredHeadcountPerDay: s.requiredCount
+          })),
+          globalConstraints: {
+            defaultMaxShiftsPerPerson: state.settings.maxShiftsPerPerson,
+            maxConsecutiveWorkingDays: state.settings.maxConsecutiveDays,
+            maxDaysOffPerPerson: state.settings.maxDaysOffPerPerson,
+            maxWeekendOffCount: state.settings.maxWeekendOffCount
+          },
+          members: state.members.map(m => ({
+            id: m.id,
+            name: m.name,
+            requestedDaysOff: m.requestedDaysOff || [],
+            availableShifts: m.availableShifts || [],
+            personalMaxShifts: m.maxShifts || state.settings.maxShiftsPerPerson
+          }))
+        };
+
+        const systemInstruction = `
+你是一位具備頂級運籌學與人力資源調度能力的智慧排班專家。
+你的任務是根據輸入的成員偏好、需休假日、可排班別與每日人力需求，指派每位成員的每日班次。
+
+排班黃金原則（依優先級排列）：
+1. 【零衝突原則（最優先）】：除非人力極度短缺，否則絕對不得指派同仁在其 requestedDaysOff（需休假日）上班。若當天確實所有人皆排休或無人可排，請指派 assignedMemberId: "UNASSIGNED", assignedMemberName: "缺額未派"。
+2. 【休假額度與週末限制】：考量全體公平性，請留意 maxDaysOffPerPerson（每人排休天數上限）與 maxWeekendOffCount（週末可連休次數上限）。
+3. 【意願優先】：若同仁有指定的 availableShifts，優先排入該時段。
+4. 【公平輪替與疲勞限制】：不可違反連續上班天數上限 (maxConsecutiveWorkingDays)。盡量平衡每位同仁在整個週期的總班數，不可超出個人上限。
+5. 【時段覆蓋】：每日各班別需指派 exact 人數需求 (requiredHeadcountPerDay)。
+
+請務必嚴格依據 responseSchema 格式回傳結構化 JSON，不得包含任何額外說明文字或 Markdown 包裹。
+`;
+
+        const userPrompt = `請為以下條件執行最佳化排班運算：\n${JSON.stringify(promptData, null, 2)}`;
+
+        // JSON Schema for structured response
+        const responseSchema = {
+          type: "OBJECT",
+          properties: {
+            assignments: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  date: { type: "STRING" },
+                  shiftId: { type: "STRING" },
+                  shiftName: { type: "STRING" },
+                  assignedMemberId: { type: "STRING" },
+                  assignedMemberName: { type: "STRING" },
+                  isHolidayConflict: { type: "BOOLEAN" }
+                },
+                required: ["date", "shiftId", "assignedMemberId", "assignedMemberName"]
+              }
+            },
+            summary: {
+              type: "OBJECT",
+              properties: {
+                satisfactionScore: { type: "NUMBER" },
+                unassignedCount: { type: "NUMBER" },
+                notes: { type: "STRING" }
+              }
+            }
+          },
+          required: ["assignments"]
+        };
+
+        const payload = {
+          contents: [{ parts: [{ text: userPrompt }] }],
+          systemInstruction: { parts: [{ text: systemInstruction }] },
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: responseSchema
+          }
+        };
+
+        // Call Gemini 3 Flash Preview via REST
+        const apiKey = state.apiKey ? state.apiKey.trim() : "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        progressBar.style.width = '75%';
+        progressStatus.innerText = 'Gemini 正在平衡約束運算最佳解...';
+        progressPercent.innerText = '75%';
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          const errMsg = errData.error?.message || response.statusText;
+          if (response.status === 401 || response.status === 403) {
+            openApiKeyModal();
+            throw new Error(`API Key 無效或未授權 (${response.status})。請點擊上方「設定 API Key」輸入有效的金鑰。`);
+          } else if (response.status === 429) {
+            throw new Error(`請求頻率過高 (429 Quota Exceeded)。請稍後再試或使用自備金鑰。`);
+          } else {
+            throw new Error(`Gemini 呼叫失敗 [${response.status}]: ${errMsg}`);
+          }
+        }
+
+        const resData = await response.json();
+        progressBar.style.width = '90%';
+        progressStatus.innerText = '解析排班矩陣結構...';
+        progressPercent.innerText = '90%';
+
+        const rawJsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawJsonText) {
+          throw new Error("模型未回傳班表內容，請重試！");
+        }
+
+        // Sanitization as per PRD Section 7
+        const sanitized = rawJsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsedResult = JSON.parse(sanitized);
+
+        // Client-side validation & Conflict Check Tagging
+        parsedResult.assignments.forEach(assign => {
+          const member = state.members.find(m => m.id === assign.assignedMemberId);
+          if (member && member.requestedDaysOff && member.requestedDaysOff.includes(assign.date)) {
+            assign.isHolidayConflict = true;
+          } else {
+            assign.isHolidayConflict = false;
+          }
+        });
+
+        // Save result
+        state.scheduleResult = {
+          generatedAt: new Date().toISOString(),
+          period: { startDate, endDate },
+          assignments: parsedResult.assignments,
+          summary: parsedResult.summary || {}
+        };
+
+        saveStateToStorage();
+        renderScheduleGrid();
+        showToast("🎉 智慧排班完成！已為您最佳化排定班次", "emerald");
+
+      } catch (error) {
+        console.error("AI 排班異常:", error);
+        showToast(error.message || "排班運算發生錯誤", "rose");
+      } finally {
+        runBtn.disabled = false;
+        runBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+        progressBox.classList.add('hidden');
+      }
+    }
+
+    function renderScheduleGrid() {
+      const table = document.getElementById('scheduleTable');
+      const placeholder = document.getElementById('gridPlaceholder');
+      const statusTag = document.getElementById('scheduleStatusTag');
+      const subInfo = document.getElementById('scheduleSubinfo');
+      const btnExportText = document.getElementById('btnExportText');
+      const btnExportCsv = document.getElementById('btnExportCsv');
+      const workloadCard = document.getElementById('workloadSummaryCard');
+
+      if (!state.scheduleResult || !state.scheduleResult.assignments || state.scheduleResult.assignments.length === 0) {
+        table.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        statusTag.className = "text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium";
+        statusTag.innerText = "未排班";
+        subInfo.innerText = "請在左側配置好後點擊啟動排班";
+        btnExportText.disabled = true;
+        btnExportCsv.disabled = true;
+        workloadCard.classList.add('hidden');
+        updateStatsSummary([], {});
+        return;
+      }
+
+      placeholder.classList.add('hidden');
+      table.classList.remove('hidden');
+      btnExportText.disabled = false;
+      btnExportCsv.disabled = false;
+      workloadCard.classList.remove('hidden');
+
+      statusTag.className = "text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium";
+      statusTag.innerText = "排班已完成";
+      const genTime = new Date(state.scheduleResult.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      subInfo.innerText = `最後運算時間：${genTime} • 支援點選下拉手動微調`;
+
+      // 1. Build table header based on configured shifts
+      const theadTr = table.querySelector('thead tr');
+      theadTr.innerHTML = `<th class="p-3 w-36 sticky left-0 bg-slate-100 z-10 shadow-r">日期 / 星期</th>`;
+      state.settings.shifts.forEach(shift => {
+        theadTr.innerHTML += `
+          <th class="p-3 font-semibold text-slate-700 min-w-[170px]">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-violet-500"></span>
+              <span>${shift.name}</span>
+            </div>
+          </th>
+        `;
+      });
+
+      // 2. Group assignments by date
+      const assignments = state.scheduleResult.assignments;
+      const assignmentsByDate = {};
+      assignments.forEach(a => {
+        if (!assignmentsByDate[a.date]) assignmentsByDate[a.date] = [];
+        assignmentsByDate[a.date].push(a);
+      });
+
+      // Sort dates
+      const sortedDates = Object.keys(assignmentsByDate).sort();
+
+      const tbody = document.getElementById('scheduleTableBody');
+      tbody.innerHTML = '';
+
+      sortedDates.forEach(dateStr => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50/80 transition group border-b border-slate-100";
+
+        const dayName = getDayOfWeekName(dateStr);
+        const isWeekend = dayName === '六' || dayName === '日';
+        const dateDisplay = dateStr.slice(5); // MM-DD
+
+        // First Date Column
+        let dateTd = `
+          <td class="p-3 font-medium sticky left-0 bg-white group-hover:bg-slate-50 transition shadow-r">
+            <div class="flex items-center justify-between">
+              <span class="font-bold ${isWeekend ? 'text-violet-700' : 'text-slate-800'}">${dateDisplay}</span>
+              <span class="text-xs px-1.5 py-0.5 rounded font-semibold ${isWeekend ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500'}">週${dayName}</span>
+            </div>
+          </td>
+        `;
+
+        // Shift Cells
+        let shiftsTd = '';
+        state.settings.shifts.forEach(shift => {
+          const shiftAssignments = assignmentsByDate[dateStr].filter(a => a.shiftId === shift.id);
+          
+          let slotsHtml = '';
+          if (shiftAssignments.length === 0) {
+            slotsHtml = `<span class="text-xs text-slate-300 italic">無設定排班</span>`;
+          } else {
+            slotsHtml = shiftAssignments.map((assign, slotIdx) => {
+              const isUnassigned = assign.assignedMemberId === 'UNASSIGNED';
+              const isConflict = assign.isHolidayConflict === true;
+
+              let badgeStyle = "bg-slate-100 text-slate-800 border-slate-200";
+              let conflictIcon = "";
+
+              if (isUnassigned) {
+                badgeStyle = "bg-amber-100 text-amber-900 border-amber-300";
+                conflictIcon = `<i class="ph ph-warning text-amber-600" title="缺額未派"></i>`;
+              } else if (isConflict) {
+                badgeStyle = "bg-rose-100 text-rose-800 border-rose-300 ring-1 ring-rose-400";
+                conflictIcon = `<i class="ph ph-prohibit text-rose-600 font-bold" title="與休假需求衝突！"></i>`;
+              } else {
+                badgeStyle = "bg-emerald-50 text-emerald-800 border-emerald-200";
+              }
+
+              // Member selector for manual override (US-04)
+              return `
+                <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs shadow-2xs ${badgeStyle} my-0.5">
+                  ${conflictIcon}
+                  <select onchange="handleManualOverride('${dateStr}', '${shift.id}', ${slotIdx}, this.value)" class="bg-transparent font-medium focus:outline-none cursor-pointer pr-1 text-xs">
+                    <option value="UNASSIGNED" ${isUnassigned ? 'selected' : ''}>⚠️ [缺額未派]</option>
+                    ${state.members.map(m => {
+                      const isHoliday = (m.requestedDaysOff || []).includes(dateStr);
+                      const holidayMark = isHoliday ? ' (休假中!)' : '';
+                      return `<option value="${m.id}" ${m.id === assign.assignedMemberId ? 'selected' : ''}>${m.name}${holidayMark}</option>`;
+                    }).join('')}
+                  </select>
+                </div>
+              `;
+            }).join('');
+          }
+
+          shiftsTd += `<td class="p-2.5 align-top">${slotsHtml}</td>`;
+        });
+
+        tr.innerHTML = dateTd + shiftsTd;
+        tbody.appendChild(tr);
+      });
+
+      // Update statistics & workload badges
+      updateStatsSummary(assignments, state.scheduleResult.summary);
+      renderWorkloadBreakdown(assignments);
+    }
+
+    function handleManualOverride(dateStr, shiftId, slotIndex, newMemberId) {
+      if (!state.scheduleResult) return;
+
+      const matchingAssignments = state.scheduleResult.assignments.filter(
+        a => a.date === dateStr && a.shiftId === shiftId
+      );
+
+      if (matchingAssignments[slotIndex]) {
+        const targetAssign = matchingAssignments[slotIndex];
+        targetAssign.assignedMemberId = newMemberId;
+
+        if (newMemberId === 'UNASSIGNED') {
+          targetAssign.assignedMemberName = '缺額未派';
+          targetAssign.isHolidayConflict = false;
+        } else {
+          const mem = state.members.find(m => m.id === newMemberId);
+          targetAssign.assignedMemberName = mem ? mem.name : '未知';
+          targetAssign.isHolidayConflict = (mem && mem.requestedDaysOff && mem.requestedDaysOff.includes(dateStr));
+        }
+
+        saveStateToStorage();
+        renderScheduleGrid();
+        showToast("已手動微調班次", "violet");
+      }
+    }
+
+    function updateStatsSummary(assignments, summary) {
+      const totalCount = assignments.length;
+      const unassignedCount = assignments.filter(a => a.assignedMemberId === 'UNASSIGNED').length;
+      const conflictCount = assignments.filter(a => a.isHolidayConflict === true).length;
+      const assignedCount = totalCount - unassignedCount;
+
+      document.getElementById('statTotalAssignments').innerText = totalCount > 0 ? `${totalCount} 班次` : '-';
+      document.getElementById('statUnassignedCount').innerText = unassignedCount;
+
+      // Satisfaction: holiday request preservation
+      if (totalCount > 0) {
+        const satisfaction = conflictCount === 0 ? "100%" : `${Math.round(((totalCount - conflictCount) / totalCount) * 100)}%`;
+        document.getElementById('statHolidaySatisfaction').innerText = satisfaction;
+      } else {
+        document.getElementById('statHolidaySatisfaction').innerText = '-';
+      }
+
+      // Average shifts
+      if (state.members.length > 0 && assignedCount > 0) {
+        const avg = (assignedCount / state.members.length).toFixed(1);
+        document.getElementById('statAvgShifts').innerText = `${avg} 天`;
+      } else {
+        document.getElementById('statAvgShifts').innerText = '-';
+      }
+    }
+
+    function renderWorkloadBreakdown(assignments) {
+      const container = document.getElementById('workloadBadges');
+      container.innerHTML = '';
+
+      const counts = {};
+      state.members.forEach(m => counts[m.id] = 0);
+
+      assignments.forEach(a => {
+        if (a.assignedMemberId && a.assignedMemberId !== 'UNASSIGNED') {
+          counts[a.assignedMemberId] = (counts[a.assignedMemberId] || 0) + 1;
+        }
+      });
+
+      state.members.forEach(m => {
+        const cnt = counts[m.id] || 0;
+        const max = m.maxShifts || state.settings.maxShiftsPerPerson;
+        const isOver = cnt > max;
+
+        container.innerHTML += `
+          <div class="px-3 py-1.5 rounded-xl border text-xs flex items-center gap-2 ${isOver ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-slate-50 border-slate-200 text-slate-700'}">
+            <span class="font-semibold">${m.name}:</span>
+            <span class="font-bold text-sm ${isOver ? 'text-rose-600' : 'text-violet-700'}">${cnt}</span>
+            <span class="text-slate-400 text-[11px]">/ 上限 ${max} 天</span>
+          </div>
+        `;
+      });
+    }
+
+    function exportToText() {
+      if (!state.scheduleResult || !state.scheduleResult.assignments) return;
+
+      const assignments = state.scheduleResult.assignments;
+      const assignmentsByDate = {};
+      assignments.forEach(a => {
+        if (!assignmentsByDate[a.date]) assignmentsByDate[a.date] = [];
+        assignmentsByDate[a.date].push(a);
+      });
+
+      const sortedDates = Object.keys(assignmentsByDate).sort();
+
+      let textOutput = `🔮 【排班結果出爐】 🔮\n`;
+      textOutput += `週期區間：${state.settings.startDate} ~ ${state.settings.endDate}\n`;
+      textOutput += `------------------------------------\n`;
+
+      sortedDates.forEach(dateStr => {
+        const day = getDayOfWeekName(dateStr);
+        textOutput += `📅 ${dateStr} (週${day})\n`;
+
+        state.settings.shifts.forEach(shift => {
+          const list = assignmentsByDate[dateStr].filter(a => a.shiftId === shift.id);
+          const names = list.map(a => a.assignedMemberName).join('、 ') || '無';
+          textOutput += `  • ${shift.name.split(' ')[0]}: ${names}\n`;
+        });
+        textOutput += `\n`;
+      });
+
+      textOutput += `------------------------------------\n`;
+      textOutput += `© 2020 TonyStudio (TONY 楊文澤顧問). All rights reserved.`;
+
+      document.getElementById('exportTextArea').value = textOutput;
+      document.getElementById('exportTextModal').classList.remove('hidden');
+    }
+
+    function closeExportTextModal() {
+      document.getElementById('exportTextModal').classList.add('hidden');
+    }
+
+    function copyExportText() {
+      const textarea = document.getElementById('exportTextArea');
+      textarea.select();
+      document.execCommand('copy');
+      showToast("已成功複製文字班表至剪貼簿！可直接貼至 LINE 群組", "emerald");
+      closeExportTextModal();
+    }
+
+    function exportToCSV() {
+      if (!state.scheduleResult || !state.scheduleResult.assignments) return;
+
+      const assignments = state.scheduleResult.assignments;
+      const assignmentsByDate = {};
+      assignments.forEach(a => {
+        if (!assignmentsByDate[a.date]) assignmentsByDate[a.date] = [];
+        assignmentsByDate[a.date].push(a);
+      });
+
+      const sortedDates = Object.keys(assignmentsByDate).sort();
+
+      // Headers with BOM for Excel UTF-8 compliance
+      let csvContent = '\uFEFF';
+      const headers = ['日期', '星期', ...state.settings.shifts.map(s => s.name)];
+      csvContent += headers.map(h => `"${h}"`).join(',') + '\n';
+
+      sortedDates.forEach(dateStr => {
+        const row = [
+          dateStr,
+          '週' + getDayOfWeekName(dateStr)
+        ];
+
+        state.settings.shifts.forEach(shift => {
+          const list = assignmentsByDate[dateStr].filter(a => a.shiftId === shift.id);
+          const names = list.map(a => a.assignedMemberName).join(' / ');
+          row.push(`"${names}"`);
+        });
+
+        csvContent += row.join(',') + '\n';
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `班表_${state.settings.startDate}_至_${state.settings.endDate}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast("班表 CSV 檔案已下載完成！", "emerald");
+    }
+
+    function executeResetAll() {
+      localStorage.removeItem(STORAGE_KEYS.MEMBERS);
+      localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+      localStorage.removeItem(STORAGE_KEYS.LATEST_RESULT);
+      
+      state.members = [];
+      state.scheduleResult = null;
+      state.settings.shifts = JSON.parse(JSON.stringify(DEFAULT_SHIFTS));
+      initializeDefaultDatesIfEmpty();
+
+      saveStateToStorage();
+      renderAll();
+      showToast("所有資料已恢復預設狀態", "slate");
+    }
+
+    function showToast(message, color = "violet") {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      let bgClass = "bg-violet-600 text-white";
+      let iconClass = "ph-info";
+
+      if (color === "emerald") {
+        bgClass = "bg-emerald-600 text-white";
+        iconClass = "ph-check-circle";
+      } else if (color === "rose") {
+        bgClass = "bg-rose-600 text-white";
+        iconClass = "ph-warning-circle";
+      } else if (color === "amber") {
+        bgClass = "bg-amber-500 text-white";
+        iconClass = "ph-warning";
+      } else if (color === "slate") {
+        bgClass = "bg-slate-800 text-white";
+        iconClass = "ph-bell";
+      }
+
+      toast.className = `${bgClass} px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-xs font-medium pointer-events-auto transition-all duration-300 transform translate-y-0 opacity-100`;
+      toast.innerHTML = `
+        <i class="ph ${iconClass} text-lg shrink-0"></i>
+        <span class="leading-relaxed">${message}</span>
+      `;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => {
+          if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 300);
+      }, 3500);
+    }
+  </script>
+</body>
+</html>
